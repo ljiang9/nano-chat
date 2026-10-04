@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>nano-chat</title>
+<style>
+:root{
+  --bg:#0f1115; --bg2:#161a21; --bg3:#1d232d;
+  --border:#262d38; --text:#e6e9ef; --muted:#8b94a3;
+  --accent:#4f8cff; --accent-d:#2f6ae0;
+  --user-bg:#1f3a68; --danger:#e5534b; --ok:#3fb950;
+  --radius:12px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",Roboto,sans-serif;
+  font-size:15px; line-height:1.6; overflow:hidden;
+}
+button{font:inherit; cursor:pointer; border:1px solid var(--border); background:var(--bg3); color:var(--text);
+  border-radius:8px; padding:7px 12px;}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+button.primary:hover{background:var(--accent-d)}
+button.ghost{background:transparent}
+button:disabled{opacity:.5; cursor:default}
+input,textarea,select{font:inherit; color:var(--text); background:var(--bg); border:1px solid var(--border);
+  border-radius:8px; padding:8px 10px; width:100%}
+input:focus,textarea:focus{outline:none; border-color:var(--accent)}
+#app{display:flex; height:100vh; height:100dvh}
+/* ---------- sidebar ---------- */
+#sidebar{width:280px; min-width:280px; background:var(--bg2); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; z-index:20}
+.side-head{padding:12px; border-bottom:1px solid var(--border); display:flex; gap:8px}
+.side-head .primary{flex:1}
+#convList{flex:1; overflow-y:auto; padding:8px}
+.conv{display:flex; align-items:center; gap:6px; padding:9px 10px; border-radius:8px; margin-bottom:4px;
+  cursor:pointer; border:1px solid transparent}
+.conv:hover{background:var(--bg3)}
+.conv.active{background:var(--bg3); border-color:var(--border)}
+.conv .ttl{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px}
+.conv .cnt{font-size:11px; color:var(--muted); white-space:nowrap}
+.conv .x{background:transparent; border:none; color:var(--muted); padding:2px 6px; font-size:14px}
+.conv .x:hover{color:var(--danger); border:none}
+.side-foot{border-top:1px solid var(--border); padding:10px 12px; font-size:12px; color:var(--muted)}
+#tokenMeter{margin-bottom:8px; line-height:1.5}
+.side-foot .row{display:flex; gap:8px}
+.side-foot .row button{flex:1; font-size:12px; padding:6px 4px}
+/* ---------- main ---------- */
+#main{flex:1; display:flex; flex-direction:column; min-width:0}
+header{display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border);
+  background:var(--bg2)}
+#sideToggle{display:none}
+#chatTitle{flex:1; font-weight:700; font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.head-actions{display:flex; gap:8px}
+.head-actions button{font-size:13px; padding:6px 10px}
+#chat{flex:1; overflow-y:auto; padding:18px; max-width:900px; width:100%; margin:0 auto}
+.empty{color:var(--muted); text-align:center; margin-top:15vh; font-size:15px}
+.msg{margin-bottom:16px; max-width:100%}
+.mhead{display:flex; gap:8px; align-items:baseline; margin-bottom:4px; font-size:12px; color:var(--muted)}
+.mhead .role{font-weight:700; color:var(--text)}
+.mbody{background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px;
+  overflow-wrap:break-word; word-break:break-word}
+.msg.user .mbody{background:var(--user-bg); border-color:#2c4f8f}
+.mbody p{margin:.55em 0}
+.mbody p:first-child{margin-top:0}.mbody p:last-child{margin-bottom:0}
+.mbody h1,.mbody h2,.mbody h3,.mbody h4{margin:.8em 0 .4em; line-height:1.3}
+.mbody h1{font-size:1.4em}.mbody h2{font-size:1.25em}.mbody h3{font-size:1.12em}.mbody h4{font-size:1em}
+.mbody ul,.mbody ol{margin:.5em 0; padding-left:1.6em}
+.mbody li{margin:.25em 0}
+.mbody blockquote{margin:.6em 0; padding:4px 12px; border-left:3px solid var(--accent); color:var(--muted);
+  background:var(--bg3); border-radius:0 8px 8px 0}
+.mbody table{border-collapse:collapse; margin:.7em 0; width:100%; font-size:14px; display:block; overflow-x:auto}
+.mbody th,.mbody td{border:1px solid var(--border); padding:6px 10px; text-align:left}
+.mbody th{background:var(--bg3)}
+.mbody a{color:var(--accent)}
+.mbody code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+  background:var(--bg3); padding:1px 6px; border-radius:5px; font-size:.88em}
+.mbody hr{border:none; border-top:1px solid var(--border); margin:1em 0}
+.codeblock{margin:.7em 0; border:1px solid var(--border); border-radius:8px; overflow:hidden}
+.codehead{display:flex; justify-content:space-between; align-items:center; background:var(--bg3);
+  padding:5px 10px; font-size:12px; color:var(--muted)}
+.codehead .copybtn{font-size:12px; padding:3px 10px}
+.codeblock pre{margin:0; padding:10px 12px; overflow-x:auto; background:var(--bg)}
+.codeblock pre code{background:transparent; padding:0; font-size:13px}
+.mactions{display:flex; gap:6px; margin-top:6px}
+.mactions button{font-size:12px; padding:4px 10px; background:transparent}
+.thinking{color:var(--muted); letter-spacing:2px; animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.35}}
+/* ---------- composer ---------- */
+#composer{border-top:1px solid var(--border); background:var(--bg2); padding:12px 14px; max-width:900px;
+  width:100%; margin:0 auto}
+#composer .row{display:flex; gap:8px; align-items:flex-end}
+#input{resize:none; max-height:160px; line-height:1.5}
+#sendBtn{min-width:76px}
+#stopBtn{background:var(--danger); border-color:var(--danger); color:#fff; min-width:76px}
+#keyHint{font-size:12px; color:var(--muted); text-align:center; padding:8px 14px 10px; background:var(--bg2)}
+#keyHint b{color:var(--text)}
+/* ---------- modal ---------- */
+#settingsModal{position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center;
+  justify-content:center; z-index:50; padding:16px}
+#settingsModal[hidden]{display:none}
+.modal-card{background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:22px;
+  width:100%; max-width:440px; max-height:90vh; overflow-y:auto}
+.modal-card h2{margin:0 0 14px; font-size:18px}
+.modal-card label{display:block; font-size:13px; color:var(--muted); margin-bottom:12px}
+.modal-card label input{margin-top:5px}
+.temp-row{display:flex; align-items:center; gap:10px}
+.temp-row input{flex:1}
+#tempVal{min-width:34px; text-align:right; color:var(--text)}
+.modal-row{display:flex; gap:8px; align-items:center; margin-top:6px}
+#testResult{font-size:13px}
+#testResult.ok{color:var(--ok)} #testResult.fail{color:var(--danger)}
+/* ---------- responsive ---------- */
+@media (max-width:720px){
+  #sidebar{position:fixed; top:0; bottom:0; left:0; transform:translateX(-105%);
+    transition:transform .22s ease; box-shadow:0 0 30px rgba(0,0,0,.5)}
+  #sidebar.open{transform:none}
+  #sideToggle{display:inline-block}
+  #chat{padding:12px}
+  .head-actions button{padding:6px 8px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="side-head">
+      <button id="newChatBtn" class="primary" data-i18n="newChat">＋ 新对话</button>
+    </div>
+    <div id="convList"></div>
+    <div class="side-foot">
+      <div id="tokenMeter"></div>
+      <div class="row">
+        <button id="exportAllBtn" data-i18n="exportAll">导出全部 JSON</button>
+        <button id="openSettingsBtn" data-i18n="settings">⚙ 设置</button>
+      </div>
+    </div>
+  </aside>
+  <main id="main">
+    <header>
+      <button id="sideToggle" class="ghost">☰</button>
+      <div id="chatTitle">nano-chat</div>
+      <div class="head-actions">
+        <button id="langBtn" class="ghost" title="语言 / Language">EN</button>
+        <button id="exportMdBtn" class="ghost" data-i18n="exportMd">导出 MD</button>
+      </div>
+    </header>
+    <div id="chat"></div>
+    <div id="composer">
+      <div class="row">
+        <textarea id="input" rows="1" data-i18n-ph="inputPh" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+        <button id="sendBtn" class="primary" data-i18n="send">发送</button>
+        <button id="stopBtn" hidden data-i18n="stop">停止</button>
+      </div>
+    </div>
+    <div id="keyHint" data-i18n="keyHint"></div>
+  </main>
+</div>
+
+<div id="settingsModal" hidden>
+  <div class="modal-card">
+    <h2 data-i18n="settings">设置</h2>
+    <label><span data-i18n="apiBase">API 地址</span><input id="cfgBase" spellcheck="false"></label>
+    <label><span data-i18n="apiKey">API Key</span><input id="cfgKey" type="password" autocomplete="off" spellcheck="false"></label>
+    <label><span data-i18n="model">模型</span><input id="cfgModel" spellcheck="false"></label>
+    <label><span data-i18n="temperature">温度</span>
+      <span class="temp-row"><input id="cfgTemp" type="range" min="0" max="2" step="0.1"><span id="tempVal">0.7</span></span>
+    </label>
+    <div class="modal-row">
+      <button id="testBtn" data-i18n="test">测试连接</button>
+      <span id="testResult"></span>
+    </div>
+    <div class="modal-row" style="margin-top:14px; justify-content:flex-end">
+      <button id="saveCfgBtn" class="primary" data-i18n="save">保存</button>
+      <button id="closeCfgBtn" data-i18n="cancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= i18n ================= */
+const I18N = {
+zh:{
+  newChat:'＋ 新对话', settings:'⚙ 设置', apiBase:'API 地址', apiKey:'API Key', model:'模型',
+  temperature:'温度', save:'保存', cancel:'取消', test:'测试连接',
+  testOk:'连接成功', testFail:'连接失败', send:'发送', stop:'停止',
+  inputPh:'输入消息，Enter 发送，Shift+Enter 换行',
+  copy:'复制', copied:'已复制 ✓', translate:'一键翻译', del:'删除', rename:'重命名',
+  confirmDel:'确定删除这个对话？', untitled:'新对话',
+  exportMd:'导出 MD', exportAll:'导出全部 JSON',
+  tokens:'tokens', estNote:'* 估算值（字符数 ÷ 4），非精确计费',
+  keyHint:'🔒 API Key 只保存在本机浏览器 localStorage，除你配置的 API 地址外不会发送到任何地方。',
+  noKey:'请先在设置里填写 API Key', reqFail:'请求失败', netErr:'网络错误',
+  you:'你', ai:'AI', thinking:'思考中…',
+  toZh:'翻译成中文：', toEn:'Translate to English:', saved:'已导出 ✓',
+  empty:'👋 开始新的对话吧\n在右上角 ⚙ 设置里填入 API Key 即可使用', langBtn:'EN',
+  title:'nano-chat · 单文件 LLM 聊天'
+},
+en:{
+  newChat:'＋ New chat', settings:'⚙ Settings', apiBase:'API Base URL', apiKey:'API Key', model:'Model',
+  temperature:'Temperature', save:'Save', cancel:'Cancel', test:'Test connection',
+  testOk:'Connected ✓', testFail:'Connection failed', send:'Send', stop:'Stop',
+  inputPh:'Type a message, Enter to send, Shift+Enter for newline',
+  copy:'Copy', copied:'Copied ✓', translate:'Translate', del:'Delete', rename:'Rename',
+  confirmDel:'Delete this conversation?', untitled:'New chat',
+  exportMd:'Export MD', exportAll:'Export all JSON',
+  tokens:'tokens', estNote:'* estimated (chars ÷ 4), not exact billing',
+  keyHint:'🔒 Your API key stays in this browser\u2019s localStorage and is only sent to the API base URL you configured.',
+  noKey:'Please set your API key in Settings first', reqFail:'Request failed', netErr:'Network error',
+  you:'You', ai:'AI', thinking:'thinking…',
+  toZh:'翻译成中文：', toEn:'Translate to English:', saved:'Exported ✓',
+  empty:'👋 Start a new conversation\nAdd your API key in ⚙ Settings (top right) to begin', langBtn:'中文',
+  title:'nano-chat · single-file LLM chat'
+}};
+const t = k => (I18N[cfg.lang] && I18N[cfg.lang][k]) || I18N.en[k] || k;
+
+/* ================= storage ================= */
+const $ = id => document.getElementById(id);
+function load(k, fb){ try{ const v = localStorage.getItem(k); return v==null?fb:JSON.parse(v); }catch(e){ return fb; } }
+function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+
+let cfg = Object.assign({base:'https://api.openai.com/v1', key:'', model:'gpt-4o-mini', temp:0.7, lang:'zh'},
+  load('nanochat.cfg', {}));
+let convs = load('nanochat.convs', []);
+let activeId = convs.length ? convs[0].id : null;
+let aborter = null;
+
+/* ================= markdown renderer (no deps) ================= */
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+let codeSeq = 0; const codeStore = {};
+function inlineFmt(s){
+  s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, '$1');
+  s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+  s = s.replace(/(^|[^*\w])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+  s = s.replace(/(^|[^_\w])_([^_\n]+)_/g, '$1<em>$2</em>');
+  s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+  return s;
+}
+function renderMarkdown(src){
+  const blocks = [];
+  let text = src.replace(/```(\w*)[ \t]*\n([\s\S]*?)(?:\n?```|$)/g, (m, lang, code) => {
+    blocks.push({lang:(lang||'').trim()||'text', code:code.replace(/\n+$/,'')});
+    return '\x00'+(blocks.length-1)+'\x00';
+  });
+  text = esc(text);
+  const lines = text.split('\n');
+  let html = '', i = 0;
+  const stack = [];
+  const closeLists = () => { while(stack.length) html += '</'+stack.pop()+'>'; };
+
+  while(i < lines.length){
+    const line = lines[i];
+    let m = line.match(/^\x00(\d+)\x00$/);
+    if(m){
+      closeLists();
+      const b = blocks[+m[1]], cid = 'c'+(codeSeq++);
+      codeStore[cid] = b.code;
+      html += '<div class="codeblock"><div class="codehead"><span>'+esc(b.lang)+
+        '</span><button class="copybtn" data-cid="'+cid+'">'+t('copy')+'</button></div>'+
+        '<pre><code>'+esc(b.code)+'</code></pre></div>';
+      i++; continue;
+    }
+    if(/^\s*$/.test(line)){ closeLists(); i++; continue; }
+    m = line.match(/^(#{1,6})\s+(.*)$/);
+    if(m){ closeLists(); const lv=m[1].length;
+      html += '<h'+lv+'>'+inlineFmt(m[2])+'</h'+lv+'>'; i++; continue; }
+    if(/^---+$/.test(line.trim())){ closeLists(); html += '<hr>'; i++; continue; }
+    if(/^&gt;/.test(line)){
+      closeLists(); const q = [];
+      while(i<lines.length && /^&gt;/.test(lines[i])){ q.push(lines[i].replace(/^&gt; ?/,'')); i++; }
+      html += '<blockquote>'+inlineFmt(q.join('<br>'))+'</blockquote>'; continue;
+    }
+    if(line.indexOf('|')>-1 && i+1<lines.length &&
+       /^\|?[\s:|\-]+\|?$/.test(lines[i+1]) && lines[i+1].indexOf('-')>-1){
+      closeLists();
+      const head = line.split('|').map(s=>s.trim()).filter(s=>s!=='');
+      i += 2; let rows = '';
+      while(i<lines.length && lines[i].indexOf('|')>-1 && lines[i].trim()!==''){
+        rows += '<tr>'+lines[i].split('|').map(s=>s.trim()).filter(s=>s!=='').map(c=>'<td>'+inlineFmt(c)+'</td>').join('')+'</tr>';
+        i++;
+      }
+      html += '<table><thead><tr>'+head.map(c=>'<th>'+inlineFmt(c)+'</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table>';
+      continue;
+    }
+    m = line.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/);
+    if(m){
+      const tag = /^\d/.test(m[2]) ? 'ol' : 'ul';
+      if(stack[stack.length-1] !== tag){ closeLists(); html += '<'+tag+'>'; stack.push(tag); }
+      html += '<li>'+inlineFmt(m[3])+'</li>'; i++; continue;
+    }
+    closeLists();
+    const p = [];
+    while(i<lines.length && lines[i].trim()!=='' && !/^#{1,6}\s/.test(lines[i]) &&
+          !/^&gt;/.test(lines[i]) && !/^\x00(\d+)\x00$/.test(lines[i]) &&
+          !/^(\s*)([-*+]|\d+[.)])\s+/.test(lines[i]) &&
+          !(lines[i].indexOf('|')>-1 && i+1<lines.length &&
+            /^\|?[\s:|\-]+\|?$/.test(lines[i+1]) && lines[i+1].indexOf('-')>-1)){
+      p.push(lines[i]); i++;
+    }
+    html += '<p>'+inlineFmt(p.join('<br>'))+'</p>';
+  }
+  closeLists();
+  return html;
+}
+
+/* ================= conversations ================= */
+const active = () => convs.find(c=>c.id===activeId) || null;
+function newConv(){
+  const c = {id:'c'+Date.now().toString(36)+Math.floor(Math.random()*1e4), title:t('untitled'),
+             created:Date.now(), messages:[]};
+  convs.unshift(c); activeId = c.id; persist(); renderAll();
+  return c;
+}
+function persist(){ save('nanochat.convs', convs); }
+function fmtTime(ts){ const d=new Date(ts);
+  return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+function estTokens(c){ let n=0; c.messages.forEach(m=>n+=m.content.length); return Math.round(n/4); }
+
+function renderConvs(){
+  const box = $('convList'); box.innerHTML = '';
+  convs.forEach(c=>{
+    const el = document.createElement('div');
+    el.className = 'conv'+(c.id===activeId?' active':'');
+    const sp = document.createElement('span'); sp.className='ttl'; sp.textContent = c.title||t('untitled');
+    sp.title = t('rename')+' ('+t('del')+' → ×)';
+    sp.ondblclick = ev => { ev.stopPropagation();
+      const name = prompt(t('rename'), c.title||'');
+      if(name!==null){ c.title = name.trim()||t('untitled'); persist(); renderConvs(); renderTitle(); } };
+    const cnt = document.createElement('span'); cnt.className='cnt'; cnt.textContent = c.messages.length+' 💬';
+    const x = document.createElement('button'); x.className='x'; x.textContent='×'; x.title=t('del');
+    x.onclick = ev => { ev.stopPropagation();
+      if(confirm(t('confirmDel'))){ convs = convs.filter(v=>v.id!==c.id);
+        if(activeId===c.id) activeId = convs.length?convs[0].id:null;
+        persist(); renderAll(); } };
+    el.append(sp, cnt, x);
+    el.onclick = ()=>{ activeId=c.id; renderAll(); closeSidebarMobile(); };
+    box.appendChild(el);
+  });
+}
+function renderTitle(){ const c=active(); $('chatTitle').textContent = c?(c.title||t('untitled')):t('title'); }
+
+function msgEl(m, idx){
+  const div = document.createElement('div');
+  div.className = 'msg '+m.role; div.dataset.idx = idx;
+  const head = document.createElement('div'); head.className='mhead';
+  const role = document.createElement('span'); role.className='role';
+  role.textContent = m.role==='user'?t('you'):t('ai');
+  const ts = document.createElement('span'); ts.textContent = fmtTime(m.ts);
+  head.append(role, ts);
+  const body = document.createElement('div'); body.className='mbody';
+  if(m.role==='assistant'){
+    body.innerHTML = m.content ? renderMarkdown(m.content)
+      : '<span class="thinking">'+t('thinking')+'</span>';
+  }else{
+    body.innerHTML = '<p>'+esc(m.content).replace(/\n/g,'<br>')+'</p>';
+  }
+  const acts = document.createElement('div'); acts.className='mactions';
+  const mkBtn = (label, fn) => { const b=document.createElement('button'); b.textContent=label;
+    b.onclick=fn; acts.appendChild(b); return b; };
+  mkBtn(t('copy'), ()=>copyText(m.content));
+  if(m.role==='assistant') mkBtn(t('translate'), ()=>translateMsg(idx));
+  mkBtn(t('del'), ()=>{ const c=active(); if(!c) return;
+    c.messages.splice(idx,1); persist(); renderChat(); updateMeter(); });
+  div.append(head, body, acts);
+  return div;
+}
+function renderChat(){
+  const box = $('chat'); box.innerHTML = '';
+  const c = active();
+  if(!c || !c.messages.length){
+    const e = document.createElement('div'); e.className='empty';
+    e.innerHTML = esc(t('empty')).replace(/\n/g,'<br>');
+    box.appendChild(e); return;
+  }
+  c.messages.forEach((m,i)=>box.appendChild(msgEl(m,i)));
+  box.scrollTop = box.scrollHeight;
+}
+function updateBubble(idx){
+  const c = active(); if(!c) return;
+  const m = c.messages[idx]; if(!m) return;
+  const box = $('chat');
+  const el = box.querySelector('.msg[data-idx="'+idx+'"] .mbody');
+  if(el) el.innerHTML = m.content ? renderMarkdown(m.content)
+    : '<span class="thinking">'+t('thinking')+'</span>';
+  box.scrollTop = box.scrollHeight;
+}
+function updateMeter(){
+  const c = active();
+  $('tokenMeter').innerHTML = c
+    ? '≈ <b>'+estTokens(c).toLocaleString()+'</b> '+t('tokens')+'<br>'+t('estNote')
+    : '';
+}
+function renderAll(){ renderConvs(); renderTitle(); renderChat(); updateMeter(); }
+
+/* ================= chat / streaming ================= */
+function apiBase(){ return (cfg.base||'').replace(/\/+$/,''); }
+async function streamChat(messages, onToken, signal){
+  const resp = await fetch(apiBase()+'/chat/completions', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.key},
+    body:JSON.stringify({model:cfg.model, messages:messages, stream:true, temperature:+cfg.temp||0}),
+    signal:signal
+  });
+  if(!resp.ok){
+    let detail=''; try{ detail=' '+(await resp.json()).error?.message||''; }catch(e){}
+    throw new Error(t('reqFail')+' (HTTP '+resp.status+')'+detail);
+  }
+  const reader = resp.body.getReader(), dec = new TextDecoder();
+  let buf = '', full = '';
+  for(;;){
+    const {done, value} = await reader.read();
+    if(done) break;
+    buf += dec.decode(value, {stream:true});
+    const parts = buf.split('\n'); buf = parts.pop();
+    for(const p of parts){
+      const line = p.trim();
+      if(line.slice(0,5)!=='data:') continue;
+      const data = line.slice(5).trim();
+      if(data==='[DONE]') continue;
+      try{
+        const d = JSON.parse(data).choices?.[0]?.delta?.content || '';
+        if(d){ full += d; onToken(full); }
+      }catch(e){}
+    }
+  }
+  return full;
+}
+async function send(){
+  const text = $('input').value.trim();
+  if(!text || aborter) return;
+  if(!cfg.key){ openSettings(); notice(t('noKey')); return; }
+  let c = active(); if(!c) c = newConv();
+  c.messages.push({role:'user', content:text, ts:Date.now()});
+  if(c.messages.length===1) c.title = text.slice(0,24)+(text.length>24?'…':'');
+  const am = {role:'assistant', content:'', ts:Date.now()};
+  c.messages.push(am);
+  $('input').value=''; autoresize();
+  persist(); renderAll();
+  const idx = c.messages.length-1;
+  aborter = new AbortController();
+  $('sendBtn').hidden = true; $('stopBtn').hidden = false;
+  try{
+    const hist = c.messages.slice(0,-1).map(m=>({role:m.role, content:m.content}));
+    am.content = await streamChat(hist, full=>{ am.content=full; updateBubble(idx); }, aborter.signal);
+  }catch(e){
+    if(e.name==='AbortError'){ if(!am.content) am.content='('+t('stop')+')'; }
+    else am.content = '⚠️ '+(e.message||t('netErr'));
+  }finally{
+    aborter = null; $('sendBtn').hidden = false; $('stopBtn').hidden = true;
+    persist(); renderAll();
+  }
+}
+async function translateMsg(idx){
+  const c = active(); if(!c || aborter) return;
+  const src = c.messages[idx]; if(!src || !src.content) return;
+  if(!cfg.key){ openSettings(); notice(t('noKey')); return; }
+  const prompt = (cfg.lang==='zh'?t('toZh'):t('toEn'))+'\n\n'+src.content;
+  const am = {role:'assistant', content:'', ts:Date.now()};
+  c.messages.push(am); persist(); renderAll();
+  const nidx = c.messages.length-1;
+  aborter = new AbortController();
+  $('sendBtn').hidden = true; $('stopBtn').hidden = false;
+  try{
+    am.content = await streamChat([{role:'user', content:prompt}], full=>{ am.content=full; updateBubble(nidx); }, aborter.signal);
+  }catch(e){
+    am.content = e.name==='AbortError' ? '('+t('stop')+')' : '⚠️ '+(e.message||t('netErr'));
+  }finally{
+    aborter = null; $('sendBtn').hidden = false; $('stopBtn').hidden = true;
+    persist(); renderAll();
+  }
+}
+function copyText(s){
+  const done = ()=>notice(t('copied'));
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(s).then(done).catch(()=>fallbackCopy(s, done));
+  }else fallbackCopy(s, done);
+}
+function fallbackCopy(s, done){
+  const ta = document.createElement('textarea');
+  ta.value = s; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); done(); }catch(e){}
+  document.body.removeChild(ta);
+}
+let noticeTimer = null;
+function notice(s){
+  let n = $('notice');
+  if(!n){ n = document.createElement('div'); n.id='notice';
+    n.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);padding:8px 16px;border-radius:8px;z-index:99;font-size:13px;';
+    document.body.appendChild(n); }
+  n.textContent = s; n.style.display='block';
+  clearTimeout(noticeTimer); noticeTimer = setTimeout(()=>n.style.display='none', 1600);
+}
+
+/* ================= export ================= */
+function download(name, content, type){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type:type}));
+  a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function exportMd(){
+  const c = active(); if(!c) return;
+  let md = '# '+(c.title||t('untitled'))+'\n\n';
+  c.messages.forEach(m=>{
+    md += '**'+(m.role==='user'?t('you'):t('ai'))+'** `'+fmtTime(m.ts)+'`\n\n'+m.content+'\n\n---\n\n';
+  });
+  md += '\n> '+t('estNote')+'\n';
+  download('nano-chat-'+Date.now()+'.md', md, 'text/markdown');
+  notice(t('saved'));
+}
+function exportAll(){
+  download('nano-chat-all-'+Date.now()+'.json', JSON.stringify(convs, null, 2), 'application/json');
+  notice(t('saved'));
+}
+
+/* ================= settings ================= */
+function openSettings(){
+  $('cfgBase').value = cfg.base; $('cfgKey').value = cfg.key;
+  $('cfgModel').value = cfg.model; $('cfgTemp').value = cfg.temp;
+  $('tempVal').textContent = cfg.temp; $('testResult').textContent = '';
+  $('testResult').className = '';
+  $('settingsModal').hidden = false;
+}
+function closeSettings(){ $('settingsModal').hidden = true; }
+async function testConnection(){
+  const base = $('cfgBase').value.trim().replace(/\/+$/,'');
+  const key = $('cfgKey').value;
+  const r = $('testResult'); r.className='';
+  r.textContent = t('thinking');
+  try{
+    const resp = await fetch(base+'/models', {headers:{'Authorization':'Bearer '+key}});
+    if(resp.ok){
+      const j = await resp.json();
+      r.textContent = t('testOk')+(j.data?' ('+j.data.length+')':'');
+      r.className='ok';
+    }else{ r.textContent = t('testFail')+' (HTTP '+resp.status+')'; r.className='fail'; }
+  }catch(e){ r.textContent = t('testFail'); r.className='fail'; }
+}
+
+/* ================= language ================= */
+function applyLang(){
+  document.documentElement.lang = cfg.lang==='zh'?'zh-CN':'en';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{ el.placeholder = t(el.dataset.i18nPh); });
+  $('langBtn').textContent = cfg.lang==='zh'?'EN':'中文';
+  renderAll();
+}
+
+/* ================= misc ui ================= */
+function autoresize(){ const ta=$('input'); ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,160)+'px'; }
+function closeSidebarMobile(){ if(window.innerWidth<=720) $('sidebar').classList.remove('open'); }
+
+/* ================= events ================= */
+$('sendBtn').onclick = send;
+$('stopBtn').onclick = ()=>{ if(aborter) aborter.abort(); };
+$('input').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); send(); } });
+$('input').addEventListener('input', autoresize);
+$('newChatBtn').onclick = ()=>{ newConv(); closeSidebarMobile(); };
+$('sideToggle').onclick = ()=>$('sidebar').classList.toggle('open');
+$('openSettingsBtn').onclick = openSettings;
+$('closeCfgBtn').onclick = closeSettings;
+$('settingsModal').addEventListener('click', e=>{ if(e.target===$('settingsModal')) closeSettings(); });
+$('saveCfgBtn').onclick = ()=>{
+  cfg.base = $('cfgBase').value.trim()||'https://api.openai.com/v1';
+  cfg.key = $('cfgKey').value;
+  cfg.model = $('cfgModel').value.trim()||'gpt-4o-mini';
+  cfg.temp = parseFloat($('cfgTemp').value)||0;
+  save('nanochat.cfg', cfg); closeSettings(); notice(t('copied'));
+};
+$('cfgTemp').addEventListener('input', e=>{ $('tempVal').textContent = e.target.value; });
+$('testBtn').onclick = testConnection;
+$('langBtn').onclick = ()=>{ cfg.lang = cfg.lang==='zh'?'en':'zh'; save('nanochat.cfg', cfg); applyLang(); };
+$('exportMdBtn').onclick = exportMd;
+$('exportAllBtn').onclick = exportAll;
+$('chat').addEventListener('click', e=>{
+  const b = e.target.closest('.copybtn');
+  if(b && codeStore[b.dataset.cid]) copyText(codeStore[b.dataset.cid]);
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeSettings(); if(aborter) aborter.abort(); } });
+
+/* ================= init ================= */
+applyLang();
+autoresize();
+</script>
+</body>
+</html>
